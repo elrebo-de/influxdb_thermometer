@@ -1,0 +1,19 @@
+dependencies:
+  # LED_ACTIVE
+  elrebo-de/onboard_led: ^1.0.4
+  # I2C_ACTIVE
+  elrebo-de/i2c_master:
+    git: https://github.com/elrebo-de/i2c_master.git
+    version: 1.0.2
+  # HTTP_ACTIVE
+  ###### sachin42/httpclient: ^1.0.1
+  # DEEP_SLEEP_ACTIVE
+  elrebo-de/deep_sleep: ^1.1.1
+  # INFLUXDB_CLIENT_ACTIVE
+  ###### elrebo-de/InfluxDB-Client-for-ESP-IDF:
+  ######   git: https://github.com/elrebo-de/InfluxDB-Client-for-ESP-IDF.git
+  ######   version: 1.0.0
+  # WIFI_ACTIVE
+  78/esp-wifi-connect: ^3.0.2
+  elrebo-de/wifi_manager: ^1.3.0
+  elrebo-de/time_sync: ^1.1.0

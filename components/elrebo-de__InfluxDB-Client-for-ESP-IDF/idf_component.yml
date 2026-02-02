@@ -1,0 +1,14 @@
+version: "1.0.0"
+license: "MIT"
+description: "InfluxDB client component for ESP-IDF version 5.5.0+ using a C++ class based on InfluxDB-Client-for-Arduino"
+url: "https://github.com/elrebo-de/InfluxDB-Client-for-ESP-IDF"
+issues: "https://github.com/elrebo-de/InfluxDB-Client-for-ESP-IDF/issues"
+repository: "https://github.com/elrebo-de/InfluxDB-Client-for-ESP-IDF.git"
+maintainers:
+  - Christoph Oberle <christoph.oberle@elrebo.de>
+files:
+  use_gitignore: true
+dependencies:
+  idf: ">=5.5.0"
+  78/esp-wifi-connect: ^3.0.2
+  sachin42/httpclient: ^1.0.1

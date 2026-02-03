@@ -114,11 +114,6 @@ extern "C" void app_main(void)
     InfluxDBClient client;
     client.setConnectionParams(INFLUXDB_URL, INFLUXDB_ORG, INFLUXDB_BUCKET, INFLUXDB_TOKEN);
     //client.setInsecure(true);
-    
-    while(!client.validateConnection()) {
-        printf("wait for InfluxDB client connection\n");
-        vTaskDelay(pdMS_TO_TICKS(1000));
-    }
 
     // Data point
     Point sensor("temperature");
@@ -165,32 +160,41 @@ extern "C" void app_main(void)
         if (!wifi.IsConnected()) {
             ESP_LOGI(tag, "Wifi connection lost, restarting ...\n");
             wifi.RestartStation();
-            // Check server connection
-            if (client.validateConnection()) {
-                ESP_LOGI(tag, "(Re-)Connected to InfluxDB: %s\n", client.getServerUrl().c_str());
-            } else {
-                ESP_LOGI(tag, "InfluxDB connection failed: %s\n", client.getLastErrorMessage().c_str());
-            }
-        }
-        // Write point
-        if (!client.writePoint(sensor)) {
-            ESP_LOGI(tag, "InfluxDB write failed: %s\n", client.getLastErrorMessage().c_str());
         }
 
-        ESP_LOGI(tag, "Temperatur: %8.5f\n", temperature);
+        // wait for InfluxDB connection for max. 30 seconds
+        int counter = 30;
+        while(!client.validateConnection() && counter > 0 ) {
+            printf("wait for InfluxDB client connection\n");
+            counter--;
+            vTaskDelay(pdMS_TO_TICKS(1000));
+        }
+        // Check server connection
+        if (!client.isConnected()) {
+            ESP_LOGI(tag, "InfluxDB connection failed: %s\n", client.getLastErrorMessage().c_str());
+        } else {
+            ESP_LOGI(tag, "(Re-)Connected to InfluxDB: %s\n", client.getServerUrl().c_str());
+
+            // Write point
+            if (!client.writePoint(sensor)) {
+                ESP_LOGI(tag, "InfluxDB write failed: %s\n", client.getLastErrorMessage().c_str());
+            }
+
+            ESP_LOGI(tag, "Temperatur: %8.5f\n", temperature);
+        }
 
         onBoardLed->setLedState(false);
         onBoardLed->show();
 
-    bool rc;
+        bool rc;
 
-    ESP_LOGI(tag, "EnableTimerWakeup");
-    ESP_ERROR_CHECK(deepSleep.EnableTimerWakeup(15, "min"));  // enable wake up after 15 minutes sleep time
-    ESP_LOGI(tag, "GoToDeepSleep");
-    rc = deepSleep.GoToDeepSleep(); // go to deep sleep
+        ESP_LOGI(tag, "EnableTimerWakeup");
+        ESP_ERROR_CHECK(deepSleep.EnableTimerWakeup(15, "min"));  // enable wake up after 15 minutes sleep time
+        ESP_LOGI(tag, "GoToDeepSleep");
+        rc = deepSleep.GoToDeepSleep(); // go to deep sleep
 
-    // this statement will not be reached, if GoToDeepSleep is working
-    ESP_LOGI(tag, "GoToDeepSleep did not work! rc=%u", rc);
+        // this statement will not be reached, if GoToDeepSleep is working
+        ESP_LOGI(tag, "GoToDeepSleep did not work! rc=%u", rc);
 
         vTaskDelay(pdMS_TO_TICKS(15 * 60 * 1000)); // wait for 15 minutes
     }

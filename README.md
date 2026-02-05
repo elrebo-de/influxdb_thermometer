@@ -25,11 +25,16 @@ Before project configuration and build, be sure to set the correct chip target u
 
 ### Configure the Project
 
-((tbc))
+The parameters for connecting the InfluxDB must be set in file secrets.h:
+
+* Copy secrets_template.h to secrets.h
+* provide INFLUXDB_URL, INFLUXDB_TOKEN, INFLUXDB_ORG and INFLUXDB_BUCKET to connect your InfluxDB.
 
 ### Build and Flash
 
-Run `idf.py -p PORT flash monitor` to build, flash and monitor the project.
+Run `idf.py build` to build the project.
+
+Run `idf.py -p PORT flash monitor` to flash and monitor the project.
 
 (To exit the serial monitor, type ``Ctrl-]`` or `Ctrl-Option-6`on a Mac.)
 

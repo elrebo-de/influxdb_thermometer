@@ -115,6 +115,11 @@ extern "C" void app_main(void)
     client.setConnectionParams(INFLUXDB_URL, INFLUXDB_ORG, INFLUXDB_BUCKET, INFLUXDB_TOKEN);
     //client.setInsecure(true);
 
+    while(!client.validateConnection()) {
+        ESP_LOGI(tag, "wait for InfluxDB client connection");
+        vTaskDelay(pdMS_TO_TICKS(1000));
+    }
+
     // Data point
     Point sensor("temperature");
 
@@ -124,11 +129,12 @@ extern "C" void app_main(void)
     char devAddrBuffer[10];
     sprintf(devAddrBuffer, "0x%2x", thermometerDevice.GetConfig().device_address);
     sensor.addTag("device_address", devAddrBuffer);
+
     // Check server connection
     if (client.validateConnection()) {
-        ESP_LOGI(tag, "connected to InfluxDB: %s\n", client.getServerUrl().c_str());
+        ESP_LOGI(tag, "connected to InfluxDB: %s", client.getServerUrl().c_str());
     } else {
-        ESP_LOGI(tag, "InfluxDB connection failed: %s\n", client.getLastErrorMessage().c_str());
+        ESP_LOGI(tag, "InfluxDB connection failed: %s", client.getLastErrorMessage().c_str());
     }
 
     while(1) {
@@ -155,32 +161,21 @@ extern "C" void app_main(void)
         // Report RSSI of currently connected network
         sensor.addField("temperature", temperature);
         // Print what are we exactly writing
-        ESP_LOGI(tag, "writing: %s\n", client.pointToLineProtocol(sensor).c_str());
+        ESP_LOGI(tag, "writing: %s", client.pointToLineProtocol(sensor).c_str());
         // If no Wifi signal, try to reconnect it
         if (!wifi.IsConnected()) {
-            ESP_LOGI(tag, "Wifi connection lost, restarting ...\n");
+            ESP_LOGI(tag, "Wifi connection lost");
             wifi.RestartStation();
-        }
-
-        // wait for InfluxDB connection for max. 30 seconds
-        int counter = 30;
-        while(!client.validateConnection() && counter > 0 ) {
-            printf("wait for InfluxDB client connection\n");
-            counter--;
-            vTaskDelay(pdMS_TO_TICKS(1000));
-        }
-        // Check server connection
-        if (!client.isConnected()) {
-            ESP_LOGI(tag, "InfluxDB connection failed: %s\n", client.getLastErrorMessage().c_str());
-        } else {
-            ESP_LOGI(tag, "(Re-)Connected to InfluxDB: %s\n", client.getServerUrl().c_str());
-
-            // Write point
-            if (!client.writePoint(sensor)) {
-                ESP_LOGI(tag, "InfluxDB write failed: %s\n", client.getLastErrorMessage().c_str());
+            // Check server connection
+            if (client.validateConnection()) {
+              ESP_LOGI(tag, "(Re-)Connected to InfluxDB: %s", client.getServerUrl().c_str());
+            } else {
+              ESP_LOGI(tag, "InfluxDB connection failed: %s", client.getLastErrorMessage().c_str());
             }
-
-            ESP_LOGI(tag, "Temperatur: %8.5f\n", temperature);
+        }
+        // Write point
+        if (!client.writePoint(sensor)) {
+          ESP_LOGI(tag, "InfluxDB write failed: %s", client.getLastErrorMessage().c_str());
         }
 
         onBoardLed->setLedState(false);

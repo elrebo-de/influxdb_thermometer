@@ -4,24 +4,23 @@
 
 static const char *tag = "InfluxDB Thermometer";
 
-#include "secrets.h"
-
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "esp_log.h"
 #include "nvs_flash.h"
 #include "sdkconfig.h"
 
-#include "HTTPClient.h"
-
-#include "driver/rtc_io.h"
-RTC_DATA_ATTR int bootCount = 0;
+//#include "driver/rtc_io.h"
 
 #include "onboard_led.hpp"
 #include "wifi_manager.hpp"
 #include "time_sync.hpp"
 #include "i2c_master.hpp"
 #include "deep_sleep.hpp"
+RTC_DATA_ATTR int bootCount = 0;
+#define DEVICE "ESP32"
+#include "InfluxDbClient.h"
+#include "http_config_server.hpp"
 
 OnBoardLed *onBoardLed;
 
@@ -29,17 +28,14 @@ static void timeTask(void *pc){
     TimeSync* timeSync = &TimeSync::getInstance();
 
     // Synchronize time
-    timeSync->obtain_time();
+    timeSync->obtainTime();
 
     while (1)
     {
-        timeSync->print_calendar();
-        vTaskDelay(pdMS_TO_TICKS(timeSync->get_sync_interval_ms())); // Print calendar every 5 minutes
+        timeSync->printCalendar();
+        vTaskDelay(pdMS_TO_TICKS(timeSync->getSyncIntervalMs())); // Print calendar every 5 minutes
     }
 }
-
-#define DEVICE "ESP32"
-#include <InfluxDbClient.h>
 
 extern "C" void app_main(void)
 {
@@ -58,16 +54,63 @@ extern "C" void app_main(void)
                std::string("de-DE")        // language for configuration access point
              );
 
+    // get ConfigServer instance
+    HttpConfigServer* configServer = &HttpConfigServer::getInstance();
+
+    configServer->initialize( std::string("**** HttpServerConfig ****"), // tag for ESP_LOGx
+                              wifi.GetIpAddress(), // IP address
+                              std::string("config") // nvs namespace
+                            );
+
+    // add config parameter "influxdbUrl"
+    configServer->addStringParameter( "01_Url",
+                                     "InfluxDB server url. Don't use localhost, always server name or ip address. E.g. http://192.168.1.48:8086 (In InfluxDB 2 UI -> Load Data -> Client Libraries)"
+                                   );
+    // add config parameter "influxdbToken"
+    configServer->addStringParameter( "02_Token",
+                                     "InfluxDB 2 server or cloud API authentication token (Use: InfluxDB UI -> Load Data -> Tokens -> <select token>)"
+                                   );
+    // add config parameter "influxdbOrg"
+    configServer->addStringParameter( "03_Org",
+                                     "InfluxDB 2 organization id (Use: InfluxDB UI -> Settings -> Profile -> <name under tile> )"
+                                   );
+    // add config parameter "influxdbBucket"
+    configServer->addStringParameter( "04_Bucket",
+                                     "InfluxDB 2 bucket name (Use: InfluxDB UI -> Load Data -> Buckets)"
+                                   );
+
+    // isConfigured()
+    // connect to nvs_flash
+    // if config parameters are already set in nvs_flash -> return true
+    // else start http server to set config parameter values and return false
+    while (!configServer->isConfigured()) {
+        ESP_LOGI(tag, "HttpConfigServer is not yet configured, go to http://%s/config to enter configuration parameter values", wifi.GetIpAddress().c_str());
+        vTaskDelay(pdMS_TO_TICKS(10000)); // delay 10 seconds
+    }
+
+    // get config parameter values
+    ESP_LOGI(tag, "get config parameter values from HttpConfigServer");
+    esp_err_t ret;
+    std::string influxdbUrl = configServer->getStringParameterValue("01_Url", &ret);
+    std::string influxdbToken = configServer->getStringParameterValue("02_Token", &ret);
+    std::string influxdbOrg = configServer->getStringParameterValue("03_Org", &ret);
+    std::string influxdbBucket = configServer->getStringParameterValue("04_Bucket", &ret);
+
+    ESP_LOGI(tag, "influxdbUrl: %s", influxdbUrl.c_str());
+    ESP_LOGI(tag, "influxdbToken: %s", influxdbToken.c_str());
+    ESP_LOGI(tag, "influxdbOrg: %s", influxdbOrg.c_str());
+    ESP_LOGI(tag, "influxdbBucket: %s", influxdbBucket.c_str());
+
     /* Initialize TimeSync class */
     ESP_LOGI(tag, "TimeSync");
     TimeSync* timeSync = &timeSync->getInstance();
-    timeSync->initialize_sntp();
-    timeSync->set_timezone(std::string("CET"));
-    timeSync->set_sync_interval_ms(300000);
+    timeSync->initializeSntp();
+    timeSync->setTimezone(std::string("CET"));
+    timeSync->setSyncIntervalMs(300000);
 
     xTaskCreate(timeTask, "time_task", 4096, NULL, 5, NULL);
 
-    while(!timeSync->is_synchronized()) {
+    while(!timeSync->isSynchronized()) {
         ESP_LOGI(tag, "time is not yet synchronized");
         vTaskDelay(pdMS_TO_TICKS(1000)); // delay 1 second
     }
@@ -112,11 +155,11 @@ extern "C" void app_main(void)
     ESP_LOGI(tag, "Start InfluxDB client");
     // InfluxDB client instance
     InfluxDBClient client;
-    client.setConnectionParams(INFLUXDB_URL, INFLUXDB_ORG, INFLUXDB_BUCKET, INFLUXDB_TOKEN);
-    //client.setInsecure(true);
+    client.setConnectionParams(influxdbUrl.c_str(), influxdbOrg.c_str(), influxdbBucket.c_str(), influxdbToken.c_str());
 
     while(!client.validateConnection()) {
-        ESP_LOGI(tag, "wait for InfluxDB client connection");
+        ESP_LOGI(tag, "InfluxDB connection failed: %s\n", client.getLastErrorMessage().c_str());
+        ESP_LOGI(tag, "wait 1 sec. for InfluxDB client connection");
         vTaskDelay(pdMS_TO_TICKS(1000));
     }
 

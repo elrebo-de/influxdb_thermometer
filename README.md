@@ -5,8 +5,9 @@
 
 The InfluxDB thermometer is an ESP32C3 Supermini Board with a MCP9808 thermometer.
 
-* If neccesary it opens a configuration on http://192.168.4.1 to set the Wifi credentials (SSID and password) with component elrebo-de/wifi-manager.
+* If necessary it opens a configuration on http://192.168.4.1 to set the Wifi credentials (SSID and password) with component elrebo-de/wifi-manager.
 * It connects to Wifi with component elrebo-de/wifi-manager.
+* If necessary it starts a configuration server on http://<ip-addr_of_esp_soc> to set the configuration parameters for the InfluxDB.
 * It synchronizes time with an NTP server with component elrebo-de/time_sync.
 * It starts an I2C bus to connect with the MCP9808 with component elrebo-de/i2c_master.
 * It measures the temperature with the MCP9808 with component elrebo-de/i2c_master.

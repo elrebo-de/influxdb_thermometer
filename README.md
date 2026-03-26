@@ -26,10 +26,11 @@ Before project configuration and build, be sure to set the correct chip target u
 
 ### Configure the Project
 
-The parameters for connecting the InfluxDB must be set in file secrets.h:
+No configuration needed!
 
-* Copy secrets_template.h to secrets.h
-* provide INFLUXDB_URL, INFLUXDB_TOKEN, INFLUXDB_ORG and INFLUXDB_BUCKET to connect your InfluxDB.
+The parameters for the Wi-Fi connection are set in a captive portal if needed.
+
+The parameters for connecting the InfluxDB are set in a web page presented by a HTTP server on the ESP SoC.
 
 ### Build and Flash
 
